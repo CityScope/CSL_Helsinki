@@ -5,3 +5,5 @@ The python file buildingsUsage.py analyzes the building usage csv file. This fil
 The outputs of the buildingsUsage.py script will be stored in the /Web/prepared directory. These json files will similary be ignored by git.
 
 The web folder contains a webtool for visualising the results of the simulated scenarios.
+
+![](S2.gif)
