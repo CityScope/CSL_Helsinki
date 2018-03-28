@@ -1,0 +1,5 @@
+#ignore all json and geojson files
+*.json
+*.geojson
+*.csv
+/Web/prepared
