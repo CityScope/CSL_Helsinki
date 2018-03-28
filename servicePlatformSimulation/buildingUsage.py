@@ -38,10 +38,10 @@ def getBldLL(bCode, bldJson):
         return []
             
 #get the buildings geojson data (previously created from the shape file)
-blds=json.load(open('../building_region.geojson'))
+blds=json.load(open('./building_region.geojson'))
 
 #get the room usage data
-usageAll=pd.read_csv('../asio_in_reservations2017.csv', encoding='latin1', sep=';')
+usageAll=pd.read_csv('./asio_in_reservations2017.csv', encoding='latin1', sep=';')
 # only consider about 4 months of data during term time.
 usage=usageAll.iloc[8:51689]
 usage=usage.fillna('0')
