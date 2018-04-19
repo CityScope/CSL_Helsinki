@@ -1,22 +1,30 @@
 var f =0
-var scenario=2
-
+var scenario=1
+// var colScale=['#add8e6', '#a4c1db', '#9baad0' ,'#9194c5' ,'#877eb9', 
+// '#7d68ae', '#7152a3', '#653c98' ,'#59248d', '#4b0082'];
+// var colScale=['#ffffe5','#ffffe5','#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506'];
+var chromaScale = chroma.scale(['#3182bd', '#fa9fb5', '#c51b8a']);
 ///////////// STYLE FUNCTIONS////////////
 
+// function getColor(p) {
+// 	if (p =='None'){return '#555555'}
+// 	else{
+//       	return p > 0.9 ? '#a50026' :
+//           p > 0.8  ? '#d73027' :
+//           p > 0.7  ? '#f46d43' :
+//           p > 0.6  ? '#fdae61' :
+//           p > 0.5   ? '#fee08b' :
+//           p > 0.4   ? '#d9ef8b' :
+//           p > 0.3   ? '#a6d96a' :
+//           p > 0.2   ? '#66bd63' :
+//                 '#1a9850';
+// 	}
+// 	}
 function getColor(p) {
-	if (p =='None'){return '#555555'}
-	else{
-      	return p > 0.9 ? '#a50026' :
-          p > 0.8  ? '#d73027' :
-          p > 0.7  ? '#f46d43' :
-          p > 0.6  ? '#fdae61' :
-          p > 0.5   ? '#fee08b' :
-          p > 0.4   ? '#d9ef8b' :
-          p > 0.3   ? '#a6d96a' :
-          p > 0.2   ? '#66bd63' :
-                '#1a9850';
-	}
-	}
+ if (p =='None'){return '#aaaaaa'}
+ // else return colScale[Math.floor(p*10)]
+ else return chromaScale(p)
+ }
 
 function getBldStyle(p, al, hubInd) {
       col=getColor(p)
@@ -40,11 +48,20 @@ function getBldStyle(p, al, hubInd) {
 ///////////// INITIALISE THE MAP////////////
 
 var map = L.map('map').setView([60.187394, 24.832049], 15);
-L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
+tile=L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
     subdomains: 'abcd',
     maxZoom: 19
-    }).addTo(map);
+    });
+var Stamen_Toner = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.{ext}', {
+  attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
+  ext: 'png'
+});
+var mapboxStreets=L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZG9vcmxleXJtaXQiLCJhIjoiY2pnNnh5NHJwOHp2YzJ4bXNkdWZyNWd3ZSJ9.am1Wub7LEzVfZKHAdRZe4g')
+var mapboxCustom=L.tileLayer('https://api.mapbox.com/styles/v1/doorleyrmit/cjg6y59xi0ul82rqknbxm024p/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZG9vcmxleXJtaXQiLCJhIjoiY2pnNnh5NHJwOHp2YzJ4bXNkdWZyNWd3ZSJ9.am1Wub7LEzVfZKHAdRZe4g')
+mapboxCustom.addTo(map);
 
 
 var bldPolys=L.featureGroup().addTo(map);
@@ -108,7 +125,7 @@ var timeControl = L.Control.extend({
 		    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
         container.id='timeID'
 		    container.style.backgroundColor = 'transparent';
-        container.style.color = 'black';
+        container.style.color = 'white';
 		    container.style.width = '300px';
 		    container.style.height = '40px';
         container.style.border='none';
@@ -193,7 +210,7 @@ function startAnimation(error, bldData, data) {
         al=1}
     else
       {d='None'
-      al=0.2}
+      al=1}
     style=getBldStyle(d, al, hubInd)
     L.polygon(polyPoints,style).addTo(bldPolys);
   }
@@ -203,10 +220,10 @@ function startAnimation(error, bldData, data) {
       if ((connections[f][l]['origin'].length>0)&&(connections[f][l]['destination'].length>0)){
         var pointA = new L.LatLng(connections[f][l]['origin'][1], connections[f][l]['origin'][0]);
         var pointB = new L.LatLng(connections[f][l]['destination'][1], connections[f][l]['destination'][0]);
-        style={color: 'cornflowerblue',weight: 1+((connections[f][l]['num'])/5),opacity: 0.5}
+        style={color: 'yellow',weight: 1+((connections[f][l]['num'])/5),opacity: 0.5}
         var polyline = new L.Polyline([pointA, pointB] ,style);
         var animatedMarker = L.animatedMarker(polyline.getLatLngs(), {'distance':25, 'interval':25, 'icon':icon});
-        polyline.addTo(lines);
+        //polyline.addTo(lines);
         animatedMarker.addTo(markers);
       }
     }
