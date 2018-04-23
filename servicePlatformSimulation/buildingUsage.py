@@ -39,6 +39,7 @@ def getBldLL(bCode, bldJson):
             
 #get the buildings geojson data (previously created from the shape file)
 blds=json.load(open('./building_region.geojson'))
+#bnds=json.load(open('./Web/prepared/bounds.geojson'))
 
 #get the room usage data
 usageAll=pd.read_csv('./asio_in_reservations2017.csv', encoding='latin1', sep=';')
@@ -264,7 +265,7 @@ for i in range(len(hubsXY)):
         if ((len(hubsXY[i])>0)&(len(roomsXY[j])>0)):
             dist_Hubs_Rooms[i,j]=np.sqrt(np.power((hubsXY[i][0]-roomsXY[j][0]),2)+np.power((hubsXY[i][1]-roomsXY[j][1]),2))
         else:
-            dist_Hubs_Rooms[i,j]=np.mean(dist_Hubs_Rooms)
+            dist_Hubs_Rooms[i,j]=np.inf
 
 # simulate a full week and in each hour:
     #each hub takes turns assigning a suitable vacant room to a randomly selected teaching purpose
@@ -390,3 +391,121 @@ json.dump(blds, open('./Web/prepared/building_usage.geojson', 'w'))
 
 json.dump({'connections_Adhoc':connections, 'connections_AdhocX':connectionsX,'times':strTimesWeek}, open('./Web/prepared/data.json', 'w'))           
 
+
+
+#Sharing scenario 3
+#Include School
+#add to orgs, rooms, blds
+bCodes.extend(['School'])
+numSchoolRooms=10
+roomsPerBld=np.append(roomsPerBld, np.array(numSchoolRooms))
+schoolRoomSuit=np.array([1,0,0,0,0,0,1,0,0,0,0,0,0,0,0])
+schoolRoomSuit.shape=[len(teachTypes),1]
+schoolLectureHours=numSchoolRooms*len(avgWeek)
+schoolReqs=np.array([0,0, 0, schoolLectureHours/5, schoolLectureHours/5, 0, 0, 0,0,0,0,0,0,0,0])
+schoolReqs.shape=[len(schoolReqs),1]
+
+for i in range(numSchoolRooms):
+    rooms.extend(['School'+str(i)])
+    suitability=np.append(suitability, schoolRoomSuit,1)
+blds['features'][1713]['properties']['buildingCo']='School'
+orgs.extend(['S'])
+#extend hubsLL and roomsLL
+HubsLL.append([24.804897, 60.179423])
+for i in range(numSchoolRooms):
+    roomsLL.append([24.804897, 60.179423])
+#update delta_r_b
+delta_r_b=np.append(delta_r_b, np.zeros((numSchoolRooms, delta_r_b.shape[1])),0)
+newCol=[0 for i in range(len(rooms)-numSchoolRooms)]
+newCol.extend([1 for i in range(numSchoolRooms)])
+newCol=np.array(newCol)
+newCol.shape=[len(newCol),1]
+delta_r_b=np.append(delta_r_b, newCol ,1)
+
+#update hubsXY and roomsXY
+hubsXY=[]
+roomsXY=[]
+for i in range(len(HubsLL)):
+    if len(HubsLL[i])>0:
+        hubsXY.append(pyproj.transform(wgs84, utm35N, HubsLL[i][0], HubsLL[i][1]))
+    else:
+        hubsXY.append([])
+for i in range(len(roomsLL)):
+    if len(roomsLL[i])>0:
+        roomsXY.append(pyproj.transform(wgs84, utm35N, roomsLL[i][0], roomsLL[i][1]))
+    else:
+        roomsXY.append([])
+# create the distance matrix    
+dist_Hubs_Rooms=np.empty([len(hubsXY), len(roomsXY)])
+for i in range(len(hubsXY)):
+    for j in range(len(roomsXY)):
+        if ((len(hubsXY[i])>0)&(len(roomsXY[j])>0)):
+            dist_Hubs_Rooms[i,j]=np.sqrt(np.power((hubsXY[i][0]-roomsXY[j][0]),2)+np.power((hubsXY[i][1]-roomsXY[j][1]),2))
+        else:
+            dist_Hubs_Rooms[i,j]=np.inf
+
+
+orgReqsAvgXSch=np.append(orgReqsAvgX, np.array(schoolReqs), 1)
+orgHoursLeft=orgReqsAvgXSch.copy()
+
+occupancyByRoom_AdhocXSch=np.zeros([len(avgWeek), len(rooms)])
+
+connectionsXSch=[[] for i in range(len(avgWeek))]
+doneAll=[0 for i in range(len(orgs))]
+for t in range(len(avgWeek)):
+    print(t)
+    doneT= [0 for i in range(len(orgs))]
+    c=0
+    roomAvailability= [1 for i in range(len(rooms))]
+    while sum(doneT)<len(doneT):
+        currentOrg =c%len(orgs)
+        ttList= random.sample(range(len(teachTypes)), len(teachTypes))
+        turnTaken=0
+        ttListInd=0
+        while ttListInd<len(ttList) and turnTaken==0:
+            currentTT=ttList[ttListInd]
+            if orgHoursLeft[currentTT, currentOrg]>0: #if this org has any more requirement of this teaching type
+                #get list of available room indices
+                candidateRooms=[r for r in range(len(rooms)) if ((suitability[currentTT, r]==1)&roomAvailability[r]==1)]
+                candidateDist=[dist_Hubs_Rooms[currentOrg,cr] for cr in candidateRooms]
+                if len(candidateRooms)>0:
+                    selectedRoom=candidateRooms[np.argmin(candidateDist)]
+                    #selectedRoom=random.sample(candidateRooms,1)[0]
+                    roomAvailability[selectedRoom]=0
+                    orgHoursLeft[currentTT, currentOrg]-=1
+                    turnTaken=1
+                    occupancyByRoom_AdhocXSch[t, selectedRoom]+=1
+                    foundDuplicate=0
+                    #check current list of connections to see if this one exists: is so increment it, if not create new one.
+                    for i in range(len(connectionsXSch[t])):
+                        if ((connectionsXSch[t][i]['origin']==HubsLL[currentOrg])&(connectionsXSch[t][i]['destination']==roomsLL[selectedRoom])):
+                            connectionsXSch[t][i]['num']+=1
+                            foundDuplicate=1
+                    if foundDuplicate==0:
+                        connectionsXSch[t].append({'num':1, 'org': currentOrg, 'room': selectedRoom, 'teachingType': currentTT, 'origin': HubsLL[currentOrg], 'destination':roomsLL[selectedRoom]})
+            ttListInd+=1
+        if ttListInd==len(ttList):
+            doneT[currentOrg]=1
+        c+=1
+
+
+occupancyByBld_AdhocXSch=np.dot(occupancyByRoom_AdhocXSch, delta_r_b)
+denom= numpy.matlib.repmat(roomsPerBld,occupancyByBld_AdhocXSch.shape[0] , 1)
+avgWeek_AdhocXSch=np.divide(occupancyByBld_AdhocXSch, denom)
+
+avgWeek_AdhocXSch=np.nan_to_num(avgWeek_AdhocXSch).tolist()
+
+
+# add the results to the building geojson files
+for f in range(len(blds['features'])):
+    code=blds['features'][f]['properties']['buildingCo']
+    if code in bCodes:
+        ind=bCodes.index(code)
+        blds['features'][f]['properties']['avgUsage_AdhocXSch']=[avgWeek_AdhocXSch[i][ind] for i in range(len(avgWeek))]
+    if code in Hubs.values():
+        blds['features'][f]['properties']['Hub']=1
+        
+#save the results        
+json.dump(blds, open('./Web/prepared/building_usageSch.geojson', 'w'))
+
+json.dump({'connections_Adhoc':connections, 'connections_AdhocX':connectionsX,'connections_AdhocXSch':connectionsXSch,'times':strTimesWeek}, open('./Web/prepared/dataSch.json', 'w'))           

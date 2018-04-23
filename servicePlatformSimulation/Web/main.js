@@ -1,25 +1,16 @@
 var f =0
-var scenario=1
+var scenario=3
+var showCircles=1
+var hourInterval=1500
+var beforeStart=5000
+var showBounds=1
+var outLines=0
 // var colScale=['#add8e6', '#a4c1db', '#9baad0' ,'#9194c5' ,'#877eb9', 
 // '#7d68ae', '#7152a3', '#653c98' ,'#59248d', '#4b0082'];
 // var colScale=['#ffffe5','#ffffe5','#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506'];
-var chromaScale = chroma.scale(['#3182bd', '#fa9fb5', '#c51b8a']);
-///////////// STYLE FUNCTIONS////////////
+var chromaScale = chroma.scale(['#62B1F6', '#DB70DB','#2E0854']);
+///////////// STYLE FUNCTION////////////
 
-// function getColor(p) {
-// 	if (p =='None'){return '#555555'}
-// 	else{
-//       	return p > 0.9 ? '#a50026' :
-//           p > 0.8  ? '#d73027' :
-//           p > 0.7  ? '#f46d43' :
-//           p > 0.6  ? '#fdae61' :
-//           p > 0.5   ? '#fee08b' :
-//           p > 0.4   ? '#d9ef8b' :
-//           p > 0.3   ? '#a6d96a' :
-//           p > 0.2   ? '#66bd63' :
-//                 '#1a9850';
-// 	}
-// 	}
 function getColor(p) {
  if (p =='None'){return '#aaaaaa'}
  // else return colScale[Math.floor(p*10)]
@@ -28,7 +19,7 @@ function getColor(p) {
 
 function getBldStyle(p, al, hubInd) {
       col=getColor(p)
-      if (hubInd==1){
+      if (hubInd==1 & outLines==1){
         outCol='black'
         outAl=2
       }
@@ -47,21 +38,16 @@ function getBldStyle(p, al, hubInd) {
 
 ///////////// INITIALISE THE MAP////////////
 
-var map = L.map('map').setView([60.187394, 24.832049], 15);
-tile=L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
+var map = L.map('map').setView([60.1875, 24.831], 15);
+var positron=L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
     subdomains: 'abcd',
     maxZoom: 19
     });
-var Stamen_Toner = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.{ext}', {
-  attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  subdomains: 'abcd',
-  maxZoom: 19,
-  ext: 'png'
-});
-var mapboxStreets=L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZG9vcmxleXJtaXQiLCJhIjoiY2pnNnh5NHJwOHp2YzJ4bXNkdWZyNWd3ZSJ9.am1Wub7LEzVfZKHAdRZe4g')
-var mapboxCustom=L.tileLayer('https://api.mapbox.com/styles/v1/doorleyrmit/cjg6y59xi0ul82rqknbxm024p/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZG9vcmxleXJtaXQiLCJhIjoiY2pnNnh5NHJwOHp2YzJ4bXNkdWZyNWd3ZSJ9.am1Wub7LEzVfZKHAdRZe4g')
-mapboxCustom.addTo(map);
+
+// var mapboxStreets=L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZG9vcmxleXJtaXQiLCJhIjoiY2pnNnh5NHJwOHp2YzJ4bXNkdWZyNWd3ZSJ9.am1Wub7LEzVfZKHAdRZe4g')
+// var mapboxCustom=L.tileLayer('https://api.mapbox.com/styles/v1/doorleyrmit/cjg81wcd800182roee1115emw/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZG9vcmxleXJtaXQiLCJhIjoiY2pnNnh5NHJwOHp2YzJ4bXNkdWZyNWd3ZSJ9.am1Wub7LEzVfZKHAdRZe4g')
+positron.addTo(map);
 
 
 var bldPolys=L.featureGroup().addTo(map);
@@ -170,21 +156,38 @@ document.getElementById("timeID").style.fontFamily = "Helvetica, Arial, sans-ser
 $(document).ready(function(){
   
   queue()
-    .defer(d3.json,'./prepared/building_usage.geojson')
-    .defer(d3.json,'./prepared/data.json')
+    .defer(d3.json,'./prepared/building_usageSch.geojson')
+    .defer(d3.json,'./prepared/dataSch.json')
+    .defer(d3.json,'./prepared/bounds.geojson')
     .await(startAnimation);
 
 
 });
 
 
-function startAnimation(error, bldData, data) {  
+function startAnimation(error, bldData, data, bounds) {  
   console.log('starting animation')
-  connections=data.connections_Adhoc
-  if (scenario==2){connections=data.connections_AdhocX;}
+  if (scenario==1){connections=data.connections_Adhoc}
+  else if (scenario==2){connections=data.connections_AdhocX;}
+  else if (scenario==3){connections=data.connections_AdhocXSch;}
   times=data.times
   var looper = setInterval(function(){
   console.log(f)
+
+
+  if (f==0 & showBounds==1){
+      for (i=0;i<bounds.features.length; i++){
+        var polyPoints=[]
+        for (p=0; p< bounds.features[i].geometry.coordinates.length-1; p++){
+            for (q=0; q< bounds.features[i].geometry.coordinates[p].length; q++){
+            point=new L.LatLng(bounds.features[i].geometry.coordinates[p][q][1], bounds.features[i].geometry.coordinates[p][q][0])
+            polyPoints.push(point);
+        }
+        }
+      L.polygon(polyPoints, {'fillOpacity' : 0}).addTo(map);
+    }
+  }
+
   
   bldPolys.clearLayers()
   lines.clearLayers()
@@ -204,7 +207,8 @@ function startAnimation(error, bldData, data) {
     }
     if (scenario==0){usageFeature='avgUsage'}
       else if (scenario==1){usageFeature='avgUsage_Adhoc'}
-        else {usageFeature='avgUsage_AdhocX'}
+        else if (scenario==2){usageFeature='avgUsage_AdhocX'}
+          else usageFeature='avgUsage_AdhocXSch'
     if (usageFeature in bldData.features[i].properties)
       {d=bldData.features[i].properties[usageFeature][f]
         al=1}
@@ -215,15 +219,15 @@ function startAnimation(error, bldData, data) {
     L.polygon(polyPoints,style).addTo(bldPolys);
   }
 
-  if (scenario>0){
+  if (scenario>0 & showCircles==1){
     for (l=0; l<connections[f].length; l++){
       if ((connections[f][l]['origin'].length>0)&&(connections[f][l]['destination'].length>0)){
         var pointA = new L.LatLng(connections[f][l]['origin'][1], connections[f][l]['origin'][0]);
         var pointB = new L.LatLng(connections[f][l]['destination'][1], connections[f][l]['destination'][0]);
         style={color: 'yellow',weight: 1+((connections[f][l]['num'])/5),opacity: 0.5}
-        var polyline = new L.Polyline([pointA, pointB] ,style);
+        var polyline = new L.Polyline([pointA, pointB] ,style);        
         var animatedMarker = L.animatedMarker(polyline.getLatLngs(), {'distance':25, 'interval':25, 'icon':icon});
-        //polyline.addTo(lines);
+        polyline.addTo(lines);
         animatedMarker.addTo(markers);
       }
     }
@@ -233,7 +237,7 @@ function startAnimation(error, bldData, data) {
 
 f+=1
 if (f>=connections.length){clearInterval(looper)}
-}, 1500)
+}, hourInterval)
 
 }
 
