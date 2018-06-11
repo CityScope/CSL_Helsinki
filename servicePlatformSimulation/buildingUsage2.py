@@ -20,6 +20,7 @@ import numpy.matlib
 import random
 from shapely.geometry import shape, Point
 import pyproj
+import copy
 
 utm35N=pyproj.Proj("+init=EPSG:32635")
 wgs84=pyproj.Proj("+init=EPSG:4326")
@@ -199,6 +200,7 @@ for wkday in range(5):#monday is 0
         avgWeek.append(avg)
 
 strTimesWeek=[dd + ' ' + str(hh+100)[1:3]+':00' for dd in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] for hh in range(dayStart, dayEnd) ]
+strTimesWeekMins=[dd + ' ' + str(hh+100)[1:3]+':'+str(n+100)[1:] for dd in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] for hh in range(dayStart, dayEnd) for n in range(60)]
 
 # add the average usage statistics to the geojson
 for f in range(len(blds['features'])):
@@ -385,11 +387,12 @@ for f in range(len(blds['features'])):
         blds['features'][f]['properties']['Hub']=1
     else:
         blds['features'][f]['properties']['Hub']=0
-        
-#save the results        
-json.dump(blds, open('./Web/prepared/building_usage.geojson', 'w'))
 
-json.dump({'connections_Adhoc':connections, 'connections_AdhocX':connectionsX,'times':strTimesWeek}, open('./Web/prepared/data.json', 'w'))           
+connectionsOut={'connections_Adhoc':connections, 'connections_AdhocX':connectionsX,'times':strTimesWeek}        
+##save the results        
+#json.dump(blds, open('./Web/prepared/building_usage.geojson', 'w'))
+#
+#json.dump(connectionsOut, open('./Web/prepared/data.json', 'w'))           
 
 
 
@@ -447,7 +450,49 @@ for i in range(len(hubsXY)):
 
 #orgReqsAvgXSch=np.append(orgReqsAvgX, np.array(schoolReqs), 1)
 #orgHoursLeft=orgReqsAvgXSch.copy()
-orgReqsAvgXSch=np.append(orgHoursLeft, np.array(schoolReqs), 1)
+connectionsXSch=copy.deepcopy(connectionsX)
+orgHoursLeft=np.append(orgHoursLeft, np.array(schoolReqs), 1)
+schoolOccupancy=np.ones([len(strTimesWeek), numSchoolRooms])
+schoolOccupancy[:,-1]=0
+occupancyByRoom_AdhocXSch=np.append(occupancyByRoom_AdhocX, schoolOccupancy, 1)
+
+for t in range(len(avgWeek)):
+    print(t)
+    doneT= [0 for i in range(len(orgs))]
+    c=0
+    roomAvailability= [int(occupancyByRoom_AdhocXSch[t,i]==0) for i in range(len(rooms))]
+    while sum(doneT)<len(doneT):
+        currentOrg =c%len(orgs)
+        ttList= random.sample(range(len(teachTypes)), len(teachTypes))
+        turnTaken=0
+        ttListInd=0
+        while ttListInd<len(ttList) and turnTaken==0:
+            currentTT=ttList[ttListInd]
+            if orgHoursLeft[currentTT, currentOrg]>0: #if this org has any more requirement of this teaching type
+                #get list of available room indices
+                candidateRooms=[r for r in range(len(rooms)) if ((suitability[currentTT, r]==1)&roomAvailability[r]==1)]
+                candidateDist=[dist_Hubs_Rooms[currentOrg,cr] for cr in candidateRooms]
+                if len(candidateRooms)>0:
+                    selectedRoom=candidateRooms[np.argmin(candidateDist)]
+                    #selectedRoom=random.sample(candidateRooms,1)[0]
+                    roomAvailability[selectedRoom]=0
+                    orgHoursLeft[currentTT, currentOrg]-=1
+                    turnTaken=1
+                    occupancyByRoom_AdhocXSch[t, selectedRoom]+=1
+                    foundDuplicate=0
+                    #check current list of connections to see if this one exists: is so increment it, if not create new one.
+                    for i in range(len(connectionsXSch[t])):
+                        if ((connectionsXSch[t][i]['origin']==HubsLL[currentOrg])&(connectionsXSch[t][i]['destination']==roomsLL[selectedRoom])):
+                            connectionsXSch[t][i]['num']+=1
+                            foundDuplicate=1
+                    if foundDuplicate==0:
+                        connectionsXSch[t].append({'num':1, 'org': currentOrg, 'room': selectedRoom, 'teachingType': currentTT, 'origin': HubsLL[currentOrg], 'destination':roomsLL[selectedRoom]})
+            ttListInd+=1
+        if ttListInd==len(ttList):
+            doneT[currentOrg]=1
+        c+=1
+
+
 #
 #occupancyByRoom_AdhocXSch=np.zeros([len(avgWeek), len(rooms)])
 #
@@ -490,23 +535,38 @@ orgReqsAvgXSch=np.append(orgHoursLeft, np.array(schoolReqs), 1)
 #        c+=1
 #
 #
-#occupancyByBld_AdhocXSch=np.dot(occupancyByRoom_AdhocXSch, delta_r_b)
-#denom= numpy.matlib.repmat(roomsPerBld,occupancyByBld_AdhocXSch.shape[0] , 1)
-#avgWeek_AdhocXSch=np.divide(occupancyByBld_AdhocXSch, denom)
+occupancyByBld_AdhocXSch=np.dot(occupancyByRoom_AdhocXSch, delta_r_b)
+denom= numpy.matlib.repmat(roomsPerBld,occupancyByBld_AdhocXSch.shape[0] , 1)
+avgWeek_AdhocXSch=np.divide(occupancyByBld_AdhocXSch, denom)
+
+avgWeek_AdhocXSch=np.nan_to_num(avgWeek_AdhocXSch).tolist()
+
+
+# add the results to the building geojson files
+for f in range(len(blds['features'])):
+    code=blds['features'][f]['properties']['buildingCo']
+    if code in bCodes:
+        ind=bCodes.index(code)
+        blds['features'][f]['properties']['avgUsage_AdhocXSch']=[avgWeek_AdhocXSch[i][ind] for i in range(len(avgWeek))]
+    if code in Hubs.values():
+        blds['features'][f]['properties']['Hub']=1
+        
+#save the results        
+json.dump(blds, open('./Web/prepared/building_usageSch.geojson', 'w'))
+connectionsOut['connections_AdhocXSch']=connectionsXSch
+json.dump({'connections_Adhoc':connections, 'connections_AdhocX':connectionsX,'connections_AdhocXSch':connectionsXSch,'times':strTimesWeek, 'timesMin':strTimesWeekMins}, open('./Web/prepared/dataSch.json', 'w'))           
+
+
+#avgAllBldsbyHour=[]
+#for i in range(len(avgWeek)):
+#    thisHour=avgWeek[i]
+#    thisAvg=np.mean([thisHour[j] for j in range(len(thisHour)) if len(bldLL[j])>0])
+#    avgAllBldsbyHour.extend([thisAvg])
+#np.mean(avgAllBldsbyHour)
 #
-#avgWeek_AdhocXSch=np.nan_to_num(avgWeek_AdhocXSch).tolist()
-#
-#
-## add the results to the building geojson files
-#for f in range(len(blds['features'])):
-#    code=blds['features'][f]['properties']['buildingCo']
-#    if code in bCodes:
-#        ind=bCodes.index(code)
-#        blds['features'][f]['properties']['avgUsage_AdhocXSch']=[avgWeek_AdhocXSch[i][ind] for i in range(len(avgWeek))]
-#    if code in Hubs.values():
-#        blds['features'][f]['properties']['Hub']=1
-#        
-##save the results        
-#json.dump(blds, open('./Web/prepared/building_usageSch.geojson', 'w'))
-#
-#json.dump({'connections_Adhoc':connections, 'connections_AdhocX':connectionsX,'connections_AdhocXSch':connectionsXSch,'times':strTimesWeek}, open('./Web/prepared/dataSch.json', 'w'))           
+#avgAllBldsbyHour_Adhoc=[]
+#for i in range(len(avgWeek)):
+#    thisHour=avgWeek_Adhoc[i]
+#    thisAvg=np.mean([thisHour[j] for j in range(len(thisHour)) if len(bldLL[j])>0])
+#    avgAllBldsbyHour_Adhoc.extend([thisAvg])
+#np.mean(avgAllBldsbyHour_Adhoc)

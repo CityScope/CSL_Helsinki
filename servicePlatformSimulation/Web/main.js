@@ -1,10 +1,12 @@
 var f =0
-var scenario=3
-var showCircles=1
-var hourInterval=1500
-var beforeStart=5000
-var showBounds=1
+var scenario=0
+var showCircles=0
+var showLines=0
+var hourInterval=200
+var showBounds=0
 var outLines=0
+var showHubs=1
+var minTimer=1
 // var colScale=['#add8e6', '#a4c1db', '#9baad0' ,'#9194c5' ,'#877eb9', 
 // '#7d68ae', '#7152a3', '#653c98' ,'#59248d', '#4b0082'];
 // var colScale=['#ffffe5','#ffffe5','#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506'];
@@ -17,28 +19,40 @@ function getColor(p) {
  else return chromaScale(p)
  }
 
-function getBldStyle(p, al, hubInd) {
-      col=getColor(p)
-      if (hubInd==1 & outLines==1){
-        outCol='black'
-        outAl=2
+function getBldStyle(p, al, hubInd, showHubs) {
+  if (showHubs==1){
+    if (hubInd==1){col='firebrick'}
+      else if (p=='None'){col='#aaaaaa'}
+        else {col='blue'}
+  var options = {
+      fillColor: col,
+      color: col,
+      opacity: al,
+      fillOpacity:al
+      };}
+  
+  else{
+    col=getColor(p)
+    if (hubInd==1 & outLines==1){
+      outCol='black'
+      outAl=2
+    }
+      else {
+        outCol=col
+        outAl=al
       }
-        else {
-          outCol=col
-          outAl=al
-        }
-      var options = {
-        fillColor: col,
-        color: outCol,
-        opacity: outAl,
-        fillOpacity:al
-        };
-      return options
+    var options = {
+      fillColor: col,
+      color: outCol,
+      opacity: outAl,
+      fillOpacity:al
+      };}
+    return options
     }
 
 ///////////// INITIALISE THE MAP////////////
 
-var map = L.map('map').setView([60.1875, 24.831], 15);
+var map = L.map('map').setView([60.1865, 24.823], 16);
 var positron=L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
     subdomains: 'abcd',
@@ -64,6 +78,8 @@ var icon = L.divIcon({
     className: 'animated-icon my-icon-id' 
 })
 
+
+
 ///////////// DEFINE THE CUSTOM CONTROLS////////////
 // Legend
 // var legend = L.control({position: 'topright'});
@@ -80,11 +96,29 @@ var icon = L.divIcon({
 //     }
 //     return div;
 // };
-var legend = L.control({position: 'topright'});  
+var legend = L.control({position: 'topright'});
+if (showHubs==1){
+    legend.onAdd = function (map) {
+
+    var div = L.DomUtil.create('div', 'info legend');
+
+    categories = ['Hubs','Resources'];
+    hubCols=['firebrick', 'blue'];
+
+    for (var i = 0; i < categories.length; i++) {
+        div.innerHTML +=
+            '<i style="background:' + hubCols[i] + '"></i> ' +
+             (categories[i] ? categories[i] + '<br>' : '+');
+    }
+
+    return div;
+        };
+}
+else {  
     legend.onAdd = function (map) {
 
     var div = L.DomUtil.create('div', 'info legend'),
-        grades = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+        grades = [0,20, 40, 60, 80],
         labels = ['<strong> % Occupancy </strong>'],
         from, to;
 
@@ -99,6 +133,7 @@ var legend = L.control({position: 'topright'});
         div.innerHTML = labels.join('<br>');
         return div;
         };
+}
 legend.addTo(map);
 
 // Day and Time box
@@ -116,7 +151,7 @@ var timeControl = L.Control.extend({
 		    container.style.height = '40px';
         container.style.border='none';
         container.style.fontSize='30px';
-        container.style.textAlign='right';
+        container.style.textAlign='left';
 		    return container;
 		  },
 		 
@@ -170,7 +205,8 @@ function startAnimation(error, bldData, data, bounds) {
   if (scenario==1){connections=data.connections_Adhoc}
   else if (scenario==2){connections=data.connections_AdhocX;}
   else if (scenario==3){connections=data.connections_AdhocXSch;}
-  times=data.times
+  if (minTimer==1) times=data.timesMin
+  else times=data.times
   var looper = setInterval(function(){
   console.log(f)
 
@@ -215,7 +251,7 @@ function startAnimation(error, bldData, data, bounds) {
     else
       {d='None'
       al=1}
-    style=getBldStyle(d, al, hubInd)
+    style=getBldStyle(d, al, hubInd, showHubs)
     L.polygon(polyPoints,style).addTo(bldPolys);
   }
 
@@ -227,7 +263,7 @@ function startAnimation(error, bldData, data, bounds) {
         style={color: 'yellow',weight: 1+((connections[f][l]['num'])/5),opacity: 0.5}
         var polyline = new L.Polyline([pointA, pointB] ,style);        
         var animatedMarker = L.animatedMarker(polyline.getLatLngs(), {'distance':25, 'interval':25, 'icon':icon});
-        polyline.addTo(lines);
+        if (showLines==1) polyline.addTo(lines);
         animatedMarker.addTo(markers);
       }
     }
