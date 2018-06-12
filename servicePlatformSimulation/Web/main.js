@@ -1,12 +1,12 @@
 var f =0
-var scenario=0
-var showCircles=0
-var showLines=0
-var hourInterval=200
+var scenario=3
+var showCircles=1
+var showLines=1
+var hourInterval=2000
 var showBounds=0
 var outLines=0
-var showHubs=1
-var minTimer=1
+var showHubs=0
+var minTimer=0
 // var colScale=['#add8e6', '#a4c1db', '#9baad0' ,'#9194c5' ,'#877eb9', 
 // '#7d68ae', '#7152a3', '#653c98' ,'#59248d', '#4b0082'];
 // var colScale=['#ffffe5','#ffffe5','#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506'];
@@ -52,7 +52,7 @@ function getBldStyle(p, al, hubInd, showHubs) {
 
 ///////////// INITIALISE THE MAP////////////
 
-var map = L.map('map').setView([60.1865, 24.823], 16);
+var map = L.map('map').setView([60.186, 24.8055], 15);
 var positron=L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
     subdomains: 'abcd',
