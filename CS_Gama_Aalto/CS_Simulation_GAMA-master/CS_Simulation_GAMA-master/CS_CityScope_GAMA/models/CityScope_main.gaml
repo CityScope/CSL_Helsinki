@@ -30,7 +30,7 @@ global {
 	// INIT PARAMETERS
 	float minimum_cycle_duration <- 0.02;
 	bool cityMatrix <- true;
-	bool onlineGrid <- true; // In case cityIOServer is not working or if no internet connection
+	bool onlineGrid <- false; // In case cityIOServer is not working or if no internet connection
 	bool realAmenity <- true;
 
 	/////////// CITYMATRIX   //////////////
@@ -72,8 +72,8 @@ global {
 	float max_speed <- 6 #km / #h;
 
 	// Variables used to initialize the table's grid.
-	float angle <- -9.74;
-	point center <- {1007, 632};
+	float angle <- 0;
+	point center <- {0, 0};
 	float brickSize <- 21.3;
 	// Online City IO server to query data from.
 	string CITY_IO_URL <- "https://cityio.media.mit.edu/api/table/citymatrix_volpe";
@@ -349,7 +349,7 @@ species road schedules: [] {
 	rgb color <- #red;
 
 	aspect base {
-		draw shape color: rgb(125, 125, 125);
+		draw shape color: rgb(255, 0, 0);
 	}
 
 }
@@ -373,7 +373,7 @@ species people skills: [moving] {
 	point the_target <- nil;
 	int degree;
 	float radius;
-	bool moveOnRoad <- true;
+	bool moveOnRoad <- false;
 	bool fromTheGrid <- false;
 
 	action travellingMode {
@@ -592,11 +592,13 @@ experiment CityScopeVolpeDemo type: gui parent: CityScopeMain autorun: true {
 		display CityScope type: opengl parent: CityScopeVirtual toolbar: false {
 		}
 
-		display CityScopeTable type: opengl background: #black fullscreen: 1 toolbar: false rotate: 180 synchronized: true camera_pos:
+		display CityScopeTable type: opengl background: #black fullscreen: 1 toolbar: false rotate: 0 synchronized: true camera_pos:
 		{1369.1261241323866, 939.6915242287623, 1345.1870238795268} camera_look_pos: {1369.1293916321506, 939.6682747598774, -6.435029977022782E-4} camera_up_vector:
 		{0.13917310095974558, 0.9902680685878096, 1.7453299527680555E-5} {
 			species amenity aspect: onTable;
 			species people aspect: scale;
+			species building aspect: base;
+			species road aspect: base;
 			graphics "interaction_graph" {
 				if (interaction_graph != nil and (drawInteraction = true or toggle1 = 7)) {
 					loop eg over: interaction_graph.edges {
@@ -608,7 +610,7 @@ experiment CityScopeVolpeDemo type: gui parent: CityScopeMain autorun: true {
 
 				}
 
-				draw rectangle(300, 225) rotated_by 9.74 color: #black at: {725, 625, 10};
+//				draw rectangle(300, 225) rotated_by 9.74 color: #black at: {725, 625, 10};
 			}
 
 		}
@@ -639,7 +641,7 @@ experiment CityScopeVolpeDemoExpe type: gui parent: CityScopeMain autorun: true 
 
 				}
 
-				draw rectangle(300, 225) rotated_by 9.74 color: #black at: {725, 625, 10};
+//				draw rectangle(300, 225) rotated_by 9.74 color: #black at: {725, 625, 10};
 			}
 
 		}
