@@ -346,10 +346,10 @@ species building schedules: [] {
 }
 
 species road schedules: [] {
-	rgb color <- #red;
+	rgb color <- #gray;
 
 	aspect base {
-		draw shape color: rgb(255, 0, 0);
+		draw shape color: rgb(50, 50, 50);
 	}
 
 }
@@ -373,7 +373,7 @@ species people skills: [moving] {
 	point the_target <- nil;
 	int degree;
 	float radius;
-	bool moveOnRoad <- false;
+	bool moveOnRoad <- true;
 	bool fromTheGrid <- false;
 
 	action travellingMode {
