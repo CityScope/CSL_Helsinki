@@ -589,7 +589,7 @@ experiment CityScopeMain type: gui virtual: true {
 experiment CityScopeVolpeDemo type: gui parent: CityScopeMain autorun: true {
 	float minimum_cycle_duration <- 0.02;
 	output {
-		display CityScope type: opengl parent: CityScopeVirtual toolbar: false autosave:{1600,900}{
+		display CityScope type: opengl parent: CityScopeVirtual toolbar: false autosave:false{
 		}
 
 		display CityScopeTable type: opengl background: #black fullscreen: 1 toolbar: false rotate: 0 synchronized: true camera_pos:
