@@ -40,10 +40,14 @@ global {
 	list<float> current_density_array;
 	// Toggle and slider are controlled by the user at the physical table.
 	// Their values are read from the cityIOServer over HTTP.
-	int toggle1;
-	int slider1;
+	// TODO hard-coding toggle1 and slider 1 as a temporary solution because the Aalto doesnt have these.
+	int toggle1<-2;
+	int slider1<-1;
 	map<int, list>
-	citymatrix_map_settings <- [-1::["Green", "Green"], 0::["R", "L"], 1::["R", "M"], 2::["R", "S"], 3::["O", "L"], 4::["O", "M"], 5::["O", "S"], 6::["A", "Road"], 7::["A", "Plaza"], 8::["Pa", "Park"], 9::["P", "Parking"]];
+	// TODO: mapping needs to be fixed for Aalto inputs
+	citymatrix_map_settings <- [-1::["Green", "Green"], 0::["R", "L"], 1::["R", "M"], 2::["R", "S"], 3::["O", "L"], 4::["O", "M"], 5::["O", "S"], 6::["A", "Road"], 7::["A", "Plaza"], 
+		8::["Pa", "Park"], 9::["P", "Parking"], 20::["Green", "Green"], 21::["Green", "Green"]
+	];
 	map<string, rgb>
 	color_map <- ["R"::#white, "O"::#gray, "S"::#gamablue, "M"::#gamaorange, "L"::#gamared, "Green"::#green, "Plaza"::#white, "Road"::#black, "Park"::#black, "Parking"::rgb(50, 50, 50)];
 	list scale_string <- ["S", "M", "L"];
@@ -73,12 +77,12 @@ global {
 
 	// Variables used to initialize the table's grid.
 	float angle <- 0;
-	point center <- {0, 0};
-	float brickSize <- 21.3;
+	point center <- {1000, 500};
+	//float brickSize <- 21.3;
 	// Online City IO server to query data from.
-	string CITY_IO_URL <- "https://cityio.media.mit.edu/api/table/citymatrix_volpe";
+	string CITY_IO_URL <- "https://cityio.media.mit.edu/api/table/cs_aalto_2";
 	// Offline backup data to use when server data unavailable.
-	string KENDALL_DATA <- "../includes/cityIO_Kendall.json";
+	string BACKUP_DATA <- "../includes/cityIO_Aalto.json";
 
 	init {
 		do initModel();
@@ -153,38 +157,50 @@ global {
 			do die;
 		}
 
-		try {
-			cityMatrixData <- json_file(CITY_IO_URL).contents;
-		}
 
-		catch {
-			cityMatrixData <- json_file(KENDALL_DATA).contents;
-			write #current_error + "Connection to Internet lost or cityIO is offline - CityMatrix is a local version from cityIO_Kendall.json";
-		}
+//		try {
+//			cityMatrixData <- json_file(CITY_IO_URL).contents;
+//		}
+//
+//		catch {
+//			cityMatrixData <- json_file(BACKUP_DATA).contents;
+//			write #current_error + "Connection to Internet lost or cityIO is offline - CityMatrix is a local version from cityIO_Kendall.json";
+//		}
+		
+		// TODO when the table data is sending the proper types, uncommemt the try,catch block above and comment the line below
+		cityMatrixData <- json_file(BACKUP_DATA).contents;
 
-		cityMatrixCell <- cityMatrixData["grid"];
-		density_array <- cityMatrixData["objects"]["density"];
-		toggle1 <- int(cityMatrixData["objects"]["toggle1"]);
-		slider1 <- int(cityMatrixData["objects"]["slider1"]);
-		loop l over: cityMatrixCell {
-			create amenity {
-				id <- int(l["type"]);
-				x <- l["x"];
-				y <- l["y"];
-				location <- {center.x + (13 - l["x"]) * brickSize, center.y + l["y"] * brickSize};
-				location <- {(location.x * cos(angle) + location.y * sin(angle)), -location.x * sin(angle) + location.y * cos(angle)};
-				shape <- square(brickSize * 0.9) at_location location;
-				size <- 10 + rnd(10);
-				fromGrid <- true;
-				scale <- citymatrix_map_settings[id][1];
-				usage <- citymatrix_map_settings[id][0];
-				color <- color_map[scale];
-				if (id != -1 and id != -2 and id != 7 and id != 6) {
-					density <- density_array[id];
+		list<int> gridCells <- cityMatrixData["grid"];
+		write('Grid data :'+gridCells);
+//		density_array <- cityMatrixData["objects"]["density"];
+//		toggle1 <- int(cityMatrixData["objects"]["toggle1"]);
+//		slider1 <- int(cityMatrixData["objects"]["slider1"]);
+		int nrows<-cityMatrixData['header']['spatial']['nrows'];
+		int ncols<-cityMatrixData['header']['spatial']['ncols'];
+		int brickSize<- cityMatrixData['header']['spatial']['cellsize'];
+		// TODO: the below is hard-coded as a temorary solution because the Aalto able doesnt have a density slider
+		density_array<-list_with(nrows*ncols,2.0);
+		loop i from: 0 to: ncols-1 {
+			loop j from: 0 to: nrows -1{
+				create amenity {					
+					id <- int(gridCells[j*ncols+i]);
+					write ('creating amenity with id :'+id);
+					x<-center.x + i * brickSize;
+					y<-center.y + j * brickSize;
+					location <- {x,y};
+					location <- {(location.x * cos(angle) + location.y * sin(angle)), -location.x * sin(angle) + location.y * cos(angle)};
+					shape <- square(brickSize * 0.9) at_location location;
+					size <- 10 + rnd(10);
+					fromGrid <- true;
+					scale <- citymatrix_map_settings[id][1];
+					usage <- citymatrix_map_settings[id][0];
+					color <- color_map[scale];
+					if (id != -1 and id != -2 and id != 7 and id != 6) {
+						// TODO: Hard-coding densty because the Aalto table doesnt have it.
+						density <- 2.0;
+					}
 				}
-
-			}
-
+			}			
 		}
 
 		ask amenity {
@@ -193,8 +209,8 @@ global {
 			}
 
 		}
-
-		density_array <- cityMatrixData["objects"]["density"];
+		density_array<-list_with(nrows*ncols,2.0);
+//		density_array <- cityMatrixData["objects"]["density"];
 
 		//UPDATE POP AT RUNTIME DEPENDING ON DENSITY VALUE
 		if (cycle > 10 and dynamicPop = true) {
@@ -326,7 +342,6 @@ species building schedules: [] {
 		if (toggle1 = 1) {
 			draw shape color: color_map[usage];
 		}
-
 		if (toggle1 = 2) {
 			if (usage = "O") {
 				draw shape color: color_map[scale];
